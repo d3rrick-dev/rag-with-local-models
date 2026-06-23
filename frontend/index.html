@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal Corporate RAG Assistant</title>
+    <style>
+        :root {
+            --brand-primary: #1f93ff;
+            --brand-dark: #111827;
+            --bg-light: #f3f4f6;
+            --border-color: #e5e7eb;
+            --text-main: #374151;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* --- Sidebar Navigation Layout --- */
+        .sidebar {
+            width: 280px;
+            background-color: var(--brand-dark);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            justify-content: space-between;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 25px;
+        }
+
+        .admin-box {
+            background-color: #1f2937;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .admin-box h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #9ca3af;
+        }
+
+        .file-input {
+            display: block;
+            width: 100%;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--brand-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0077e6;
+        }
+
+        /* --- Main Chat Window Area --- */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+        }
+
+        .chat-header {
+            height: 64px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            background: #ffffff;
+        }
+
+        .chat-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .message-pane {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .msg-user {
+            background-color: var(--brand-primary);
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .msg-ai {
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        /* --- Footer Input Fields --- */
+        .chat-input-area {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            background: #ffffff;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            background: var(--bg-light);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .input-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .input-wrapper button {
+            padding: 0 20px;
+            border: none;
+            background: var(--brand-dark);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .status-text {
+            font-size: 11px;
+            margin-top: 8px;
+            color: #9ca3af;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>🏢 Internal Workspace</h2>
+            
+            <div class="admin-box">
+                <h3>Admin Knowledge Ingestion</h3>
+                <input type="file" id="docFile" class="file-input" accept=".txt,.pdf" />
+                <button class="btn btn-primary" onclick="uploadDocument()">Upload & Index</button>
+                <div id="uploadStatus" style="font-size: 11px; margin-top: 8px; color: #10b981;"></div>
+            </div>
+        </div>
+        <div>
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">Strict Grounding Mode Active</p>
+        </div>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>💬 Secure Knowledge Base Assistant</h1>
+        </div>
+
+        <div class="message-pane" id="messagePane">
+            <div class="message-bubble msg-ai">
+                Hello! I am connected to your secure internal knowledge base database. Ask me anything grounded in your uploaded organizational documentation.
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <input type="text" id="queryInput" placeholder="Ask a question about internal operations..." onkeypress="handleKeyPress(event)" />
+                <button onclick="submitUserQuery()">Send</button>
+            </div>
+            <div id="runtimeStatus" class="status-text"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_HOST = "http://localhost:8000";
+
+        /**
+         * Transmits targeted documentation directly to the admin parsing pipeline.
+         */
+        async function uploadDocument() {
+            const fileSelector = document.getElementById("docFile");
+            const statusDisplay = document.getElementById("uploadStatus");
+            
+            if (!fileSelector.files[0]) {
+                alert("Please select a valid PDF or TXT file first.");
+                return;
+            }
+
+            const bundle = new FormData();
+            bundle.append("file", fileSelector.files[0]);
+            bundle.append("role", "Admin"); // Fulfills validation checkpoint logic
+
+            statusDisplay.innerText = "Indexing vectors...";
+            statusDisplay.style.color = "#9ca3af";
+
+            try {
+                const response = await fetch(`${API_HOST}/api/admin/upload`, {
+                    method: "POST",
+                    body: bundle
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDisplay.innerText = "✅ Successfully indexed into ChromaDB!";
+                    statusDisplay.style.color = "#10b981";
+                    fileSelector.value = ""; 
+                } else {
+                    statusDisplay.innerText = `Error: ${data.detail || "Upload failed"}`;
+                    statusDisplay.style.color = "#ef4444";
+                }
+            } catch (error) {
+                statusDisplay.innerText = "Network pipeline error encountered.";
+                statusDisplay.style.color = "#ef4444";
+            }
+        }
+
+        /**
+         * Dispatches inquiries down context-grounded retrieval loops.
+         */
+        async function submitUserQuery() {
+            const inputField = document.getElementById("queryInput");
+            const container = document.getElementById("messagePane");
+            const runtimeLabel = document.getElementById("runtimeStatus");
+            const messageText = inputField.value.trim();
+
+            if (!messageText) return;
+
+            // Render text string node out instantly into user screen domain
+            appendBubble(messageText, "msg-user");
+            inputField.value = "";
+            
+            runtimeLabel.innerText = "Searching local vectors & generating grounded answer...";
+
+            try {
+                const response = await fetch(`${API_HOST}/api/chat/query`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: messageText })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    appendBubble(data.reply, "msg-ai");
+                } else {
+                    appendBubble(`⚠️ Exception: ${data.detail || "Unable to extract response stream."}`, "msg-ai");
+                }
+            } catch (err) {
+                appendBubble("❌ Execution error: Connection dropped or timeout triggered.", "msg-ai");
+            } finally {
+                runtimeLabel.innerText = "";
+            }
+        }
+
+        function appendBubble(contentText, className) {
+            const container = document.getElementById("messagePane");
+            const cell = document.createElement("div");
+            cell.className = `message-bubble ${className}`;
+            cell.innerText = contentText;
+            container.appendChild(cell);
+            container.scrollTop = container.scrollHeight; // Keep view focused downwards
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                submitUserQuery();
+            }
+        }
+    </script>
+</body>
+</html>

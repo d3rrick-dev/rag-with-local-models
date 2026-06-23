@@ -1,0 +1,35 @@
+# --- Environment Configurations (CRITICAL) ---
+.env
+.env.local
+.env.*.local
+
+# --- Python Virtual Environments ---
+.venv/
+venv/
+ENV/
+env/
+
+# --- Python Caches & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- OS & System Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Dependencies & Packages (If applicable) ---
+node_modules/
+dist/
+build/
+*.egg-info/
